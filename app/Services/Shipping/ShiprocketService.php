@@ -178,6 +178,57 @@ class ShiprocketService
     /**
      * @return array<string, mixed>|null
      */
+    /**
+     * Ask Shiprocket for a shipping label URL for the given Shiprocket shipment id.
+     */
+    public function fetchShippingLabelUrl(string $shiprocketShipmentId): ?string
+    {
+        if (! $this->isConfigured()) {
+            return null;
+        }
+
+        $id = (int) $shiprocketShipmentId;
+        if ($id <= 0) {
+            return null;
+        }
+
+        try {
+            $token = $this->authToken();
+            $res = Http::timeout(60)
+                ->withToken($token)
+                ->acceptJson()
+                ->asJson()
+                ->post(self::BASE.'/courier/generate/label', [
+                    'shipment_id' => [$id],
+                ]);
+
+            if (! $res->successful()) {
+                Log::warning('Shiprocket generate label failed', [
+                    'shipment_id' => $id,
+                    'status' => $res->status(),
+                    'body' => $res->body(),
+                ]);
+
+                return null;
+            }
+
+            $json = $res->json();
+            if (! is_array($json)) {
+                return null;
+            }
+
+            $url = data_get($json, 'label_url')
+                ?? data_get($json, 'response.label_url')
+                ?? data_get($json, 'payload.label_url');
+
+            return is_string($url) && str_starts_with($url, 'http') ? $url : null;
+        } catch (\Throwable $e) {
+            Log::warning('Shiprocket generate label exception', ['message' => $e->getMessage()]);
+
+            return null;
+        }
+    }
+
     public function trackByAwb(string $awb): ?array
     {
         if ($awb === '') {
