@@ -2,6 +2,26 @@
 
 @section('title', $artisan->name.' — '.config('app.name'))
 
+@section('meta_description', \Illuminate\Support\Str::limit(strip_tags((string) ($artisan->bio ?? 'Artisan profile on GicoGifts.')), 158))
+
+@section('canonical', route('artisans.show', $artisan->slug, true))
+
+@php
+    $artisanUrl = route('artisans.show', $artisan->slug, true);
+    $artisanLd = ['@context' => 'https://schema.org', '@graph' => [[
+        '@type' => 'BreadcrumbList',
+        'itemListElement' => [
+            ['@type' => 'ListItem', 'position' => 1, 'name' => 'Home', 'item' => url('/')],
+            ['@type' => 'ListItem', 'position' => 2, 'name' => 'Artisans', 'item' => route('artisans.index', [], true)],
+            ['@type' => 'ListItem', 'position' => 3, 'name' => $artisan->name, 'item' => $artisanUrl],
+        ],
+    ]]];
+@endphp
+
+@push('jsonld')
+    <script type="application/ld+json">{!! json_encode($artisanLd, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS) !!}</script>
+@endpush
+
 @section('content')
     <h1 class="text-3xl font-semibold text-stone-900">{{ $artisan->name }}</h1>
     @if($artisan->region)

@@ -7,7 +7,76 @@
     if ($galleryUrls === []) {
         $galleryUrls = ['https://placehold.co/900x700/F7EEE3/6D3620?text='.rawurlencode($product->name)];
     }
+    $primaryImage = $galleryUrls[0];
+    $metaDesc = $product->meta_description
+        ?: \Illuminate\Support\Str::limit(strip_tags((string) $product->short_description), 158);
+    if (trim($metaDesc) === '') {
+        $metaDesc = (string) config('gicogifts.default_meta_description');
+    }
+    $reviewCount = $product->reviews->count();
+    $avgRating = $reviewCount > 0 ? round((float) $product->reviews->avg('rating'), 2) : null;
+    $productUrl = route('product.show', $product->slug, true);
+    $crumbs = [
+        ['Home', url('/')],
+        ['Shop', route('shop.index', [], true)],
+    ];
+    if ($product->region) {
+        $crumbs[] = [$product->region->name, route('shop.region', $product->region->slug, true)];
+    }
+    $breadcrumbItems = [];
+    $pos = 1;
+    foreach ($crumbs as [$label, $u]) {
+        $breadcrumbItems[] = [
+            '@type' => 'ListItem',
+            'position' => $pos++,
+            'name' => $label,
+            'item' => $u,
+        ];
+    }
+    $breadcrumbItems[] = [
+        '@type' => 'ListItem',
+        'position' => $pos,
+        'name' => $product->name,
+        'item' => $productUrl,
+    ];
+    $graph = [
+        [
+            '@type' => 'Product',
+            'name' => $product->name,
+            'sku' => $product->sku,
+            'description' => $metaDesc,
+            'image' => $galleryUrls,
+            'url' => $productUrl,
+            'offers' => [
+                '@type' => 'Offer',
+                'url' => $productUrl,
+                'priceCurrency' => 'INR',
+                'price' => number_format((float) $product->price_inr, 2, '.', ''),
+                'availability' => 'https://schema.org/InStock',
+            ],
+        ],
+        [
+            '@type' => 'BreadcrumbList',
+            'itemListElement' => $breadcrumbItems,
+        ],
+    ];
+    if ($reviewCount > 0 && $avgRating !== null) {
+        $graph[0]['aggregateRating'] = [
+            '@type' => 'AggregateRating',
+            'ratingValue' => (string) $avgRating,
+            'reviewCount' => (string) $reviewCount,
+        ];
+    }
 @endphp
+
+@section('meta_description', $metaDesc)
+@section('canonical', $productUrl)
+@section('og_type', 'product')
+@section('og_image', $primaryImage)
+
+@push('jsonld')
+    <script type="application/ld+json">{!! json_encode(['@context' => 'https://schema.org', '@graph' => $graph], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS) !!}</script>
+@endpush
 
 @section('content')
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">

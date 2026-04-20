@@ -2,6 +2,8 @@
 
 @section('title', 'Gift boxes — '.config('app.name'))
 
+@section('meta_description', 'Curated artisan gift boxes from Rajasthan — ready-to-ship combinations with story cards, handmade by vetted makers.')
+
 @section('content')
     <h1 class="text-2xl font-semibold text-stone-900">Gift boxes</h1>
     <p class="mt-2 text-stone-600 text-sm">Our curated Rajasthan boxes.</p>

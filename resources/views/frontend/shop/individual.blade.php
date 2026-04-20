@@ -2,6 +2,8 @@
 
 @section('title', 'Individual pieces — '.config('app.name'))
 
+@section('meta_description', 'Handmade individual gifts and décor from GicoGifts — marble, textiles, pottery, and more from Rajasthan.')
+
 @section('content')
     <h1 class="text-2xl font-semibold text-stone-900">Individual pieces</h1>
     <p class="mt-2 text-stone-600 text-sm">Marble, soapstone, and more from the bench.</p>

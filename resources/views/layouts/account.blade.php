@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Account — '.config('app.name'))</title>
+    @include('partials.seo-head')
+    @stack('meta')
     <script>
         window.ggRoutes = @json(['cartAdd' => route('cart.add'), 'gigiChat' => route('gigi.chat')]);
     </script>

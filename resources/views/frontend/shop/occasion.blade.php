@@ -1,10 +1,38 @@
 @extends('layouts.app')
 
-@section('title', $occasion->name.' — '.config('app.name'))
+@section('title', $occasion->name.' gifts — '.config('app.name'))
+
+@section('meta_description', 'Shop '.$occasion->name.' gift ideas from GicoGifts — curated Rajasthan boxes and handmade pieces, shipped from Udaipur.')
+
+@section('canonical', route('shop.occasion', $occasion->slug, true))
+
+@php
+    $occUrl = route('shop.occasion', $occasion->slug, true);
+    $occLd = [
+        '@context' => 'https://schema.org',
+        '@graph' => [[
+            '@type' => 'BreadcrumbList',
+            'itemListElement' => [
+                ['@type' => 'ListItem', 'position' => 1, 'name' => 'Home', 'item' => url('/')],
+                ['@type' => 'ListItem', 'position' => 2, 'name' => 'Shop', 'item' => route('shop.index', [], true)],
+                ['@type' => 'ListItem', 'position' => 3, 'name' => $occasion->name, 'item' => $occUrl],
+            ],
+        ]],
+    ];
+@endphp
+
+@push('jsonld')
+    <script type="application/ld+json">{!! json_encode($occLd, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS) !!}</script>
+@endpush
 
 @section('content')
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16">
-        <nav class="text-xs text-chocolate-700/80">
+        @if($occasion->hero_image)
+            <div class="overflow-hidden rounded-3xl ring-1 ring-ivory-200 shadow-warm">
+                <img src="{{ $occasion->hero_image }}" alt="" class="h-56 w-full object-cover sm:h-72 md:h-80" width="1600" height="640" fetchpriority="high">
+            </div>
+        @endif
+        <nav class="mt-8 text-xs text-chocolate-700/80">
             <a href="{{ route('shop.index') }}" class="hover:text-sienna-600">Shop</a>
             <span class="mx-1">/</span>
             <span class="text-chocolate-900">{{ $occasion->name }}</span>

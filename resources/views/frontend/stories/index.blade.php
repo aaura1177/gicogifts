@@ -2,6 +2,8 @@
 
 @section('title', 'Stories — '.config('app.name'))
 
+@section('meta_description', 'Editorial stories from GicoGifts — workshops, regions, and artisans behind our Rajasthan gift boxes.')
+
 @section('content')
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16">
         <h1 class="font-display text-3xl font-medium text-chocolate-900">Stories</h1>

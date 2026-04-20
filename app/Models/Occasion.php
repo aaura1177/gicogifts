@@ -15,6 +15,7 @@ class Occasion extends Model
         'slug',
         'name',
         'sort_order',
+        'hero_image',
     ];
 
     public function getSlugOptions(): SlugOptions

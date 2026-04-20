@@ -2,6 +2,8 @@
 
 @section('title', config('app.name').' — Rajasthan, unboxed.')
 
+@section('meta_description', 'Curated artisan gift boxes from Rajasthan — handmade pieces, story-led gifting, and flat ₹99 shipping (free above ₹2,000).')
+
 @section('content')
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {{-- Hero --}}

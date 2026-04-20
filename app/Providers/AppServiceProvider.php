@@ -8,7 +8,13 @@ use App\Listeners\CreateShiprocketOrder;
 use App\Listeners\DeductBomInventory;
 use App\Listeners\NotifySlackOfOrder;
 use App\Listeners\SendOrderConfirmationEmail;
+use App\Models\Artisan;
 use App\Models\Cart;
+use App\Models\Occasion;
+use App\Models\Product;
+use App\Models\Region;
+use App\Models\Story;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -34,6 +40,12 @@ class AppServiceProvider extends ServiceProvider
 
         View::composer('layouts.app', $cartComposer);
         View::composer('layouts.account', $cartComposer);
+
+        $sitemapCacheKey = 'seo.sitemap_xml_v2';
+        foreach ([Product::class, Story::class, Artisan::class, Occasion::class, Region::class] as $modelClass) {
+            $modelClass::saved(fn () => Cache::forget($sitemapCacheKey));
+            $modelClass::deleted(fn () => Cache::forget($sitemapCacheKey));
+        }
 
         Event::listen(OrderPaid::class, DeductBomInventory::class);
         Event::listen(OrderPaid::class, CheckStockAlerts::class);

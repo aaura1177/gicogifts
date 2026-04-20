@@ -2,6 +2,8 @@
 
 @section('title', 'Artisans — '.config('app.name'))
 
+@section('meta_description', 'Meet the painters, weavers, and makers behind GicoGifts — artisan profiles from across Rajasthan.')
+
 @section('content')
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16">
         <h1 class="font-display text-3xl font-medium text-chocolate-900">Our artisans</h1>
