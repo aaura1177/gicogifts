@@ -31,6 +31,7 @@
     </div>
     @include('frontend.partials.footer')
     @include('frontend.partials.cart-drawer')
+    @include('frontend.partials.gigi')
     @stack('scripts')
 </body>
 </html>

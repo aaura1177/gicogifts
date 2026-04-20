@@ -69,7 +69,9 @@ Route::get('/faq', [PageController::class, 'faq'])->name('faq');
 Route::get('/contact', [ContactController::class, 'create'])->name('contact');
 Route::post('/contact', [ContactController::class, 'store'])->name('contact.store');
 
-Route::post('/gigi/chat', [GigiChatController::class, 'chat'])->name('gigi.chat');
+Route::post('/gigi/chat', [GigiChatController::class, 'chat'])
+    ->middleware('throttle:60,1')
+    ->name('gigi.chat');
 
 Route::post('/newsletter/subscribe', [NewsletterController::class, 'store'])->name('newsletter.subscribe');
 

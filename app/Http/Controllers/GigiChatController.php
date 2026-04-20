@@ -2,27 +2,31 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\Gigi\GigiChatService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Throwable;
 
 class GigiChatController extends Controller
 {
-    public function chat(Request $request): JsonResponse
+    public function chat(Request $request, GigiChatService $gigi): JsonResponse
     {
-        $request->validate([
+        $validated = $request->validate([
             'message' => ['required', 'string', 'max:2000'],
         ]);
 
-        // Phase 7: Gemini + rulebook. Level-1 quick replies stub:
-        $msg = mb_strtolower($request->input('message'));
-        if (str_contains($msg, 'hi') || str_contains($msg, 'hello')) {
+        try {
+            $reply = $gigi->respond($validated['message']);
+        } catch (Throwable $e) {
+            report($e);
+
             return response()->json([
-                'reply' => 'Hello from GicoGifts. Browse our gift boxes or tell me the occasion and budget.',
+                'reply' => 'I could not answer that just now. Please try again in a moment, or use the Contact page for help.',
             ]);
         }
 
         return response()->json([
-            'reply' => 'Thanks for your message. Full Gigi AI is coming in Phase 7. For now, visit the shop or contact us.',
+            'reply' => $reply,
         ]);
     }
 }
