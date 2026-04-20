@@ -5,9 +5,10 @@ namespace App\Filament\Resources\Orders\Pages;
 use App\Filament\Resources\Orders\OrderResource;
 use App\Mail\OrderConfirmed;
 use App\Models\Order;
-use App\Models\Payment;
 use App\Models\OrderStatusHistory;
+use App\Models\Payment;
 use App\Services\Payments\RazorpayService;
+use App\Services\Payments\StripePaymentService;
 use App\Services\Shipping\ShiprocketService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Filament\Actions\Action;
@@ -17,6 +18,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Filament\Support\Icons\Heroicon;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 
@@ -71,23 +73,9 @@ class EditOrder extends EditRecord
                         ->default(null),
                 ])
                 ->requiresConfirmation()
-                ->action(function (array $data, RazorpayService $razorpay): void {
+                ->action(function (array $data, RazorpayService $razorpay, StripePaymentService $stripe): void {
                     $order = $this->record->fresh(['payments']);
-                    if ($order->payment_gateway !== 'razorpay') {
-                        Notification::make()->title('Only Razorpay refunds are automated')->danger()->send();
-
-                        return;
-                    }
-                    if (! $razorpay->isConfigured()) {
-                        Notification::make()->title('Razorpay is not configured')->danger()->send();
-
-                        return;
-                    }
-                    if (! is_string($order->razorpay_payment_id) || $order->razorpay_payment_id === '') {
-                        Notification::make()->title('Missing Razorpay payment id')->danger()->send();
-
-                        return;
-                    }
+                    $gateway = (string) ($order->payment_gateway ?? '');
 
                     $amountInr = isset($data['amount_inr']) && $data['amount_inr'] !== null && $data['amount_inr'] !== ''
                         ? (float) $data['amount_inr']
@@ -101,60 +89,147 @@ class EditOrder extends EditRecord
                     $amountPaise = $amountInr !== null ? (int) round($amountInr * 100) : null;
                     $note = trim((string) ($data['note'] ?? ''));
 
-                    try {
-                        $refund = $razorpay->refundPayment(
-                            $order->razorpay_payment_id,
-                            $amountPaise,
-                            [
-                                'order_id' => (string) $order->id,
-                                'order_number' => $order->order_number,
-                                'reason' => $note !== '' ? $note : 'Admin refund',
-                            ],
-                        );
-                    } catch (\Throwable $e) {
-                        Notification::make()
-                            ->title('Refund failed')
-                            ->body($e->getMessage())
-                            ->danger()
-                            ->send();
+                    if ($gateway === 'razorpay') {
+                        if (! $razorpay->isConfigured()) {
+                            Notification::make()->title('Razorpay is not configured')->danger()->send();
+
+                            return;
+                        }
+                        if (! is_string($order->razorpay_payment_id) || $order->razorpay_payment_id === '') {
+                            Notification::make()->title('Missing Razorpay payment id')->danger()->send();
+
+                            return;
+                        }
+
+                        try {
+                            $refund = $razorpay->refundPayment(
+                                $order->razorpay_payment_id,
+                                $amountPaise,
+                                [
+                                    'order_id' => (string) $order->id,
+                                    'order_number' => $order->order_number,
+                                    'reason' => $note !== '' ? $note : 'Admin refund',
+                                ],
+                            );
+                        } catch (\Throwable $e) {
+                            Notification::make()
+                                ->title('Refund failed')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+
+                            return;
+                        }
+
+                        DB::transaction(function () use ($order, $refund, $note, $amountInr): void {
+                            $locked = Order::query()->whereKey($order->id)->lockForUpdate()->first();
+                            if (! $locked) {
+                                return;
+                            }
+
+                            $locked->update(['status' => 'refunded']);
+
+                            $captured = Payment::query()
+                                ->where('order_id', $locked->id)
+                                ->where('gateway', 'razorpay')
+                                ->where('status', 'captured')
+                                ->latest()
+                                ->first();
+
+                            if ($captured) {
+                                $raw = is_array($captured->raw_response) ? $captured->raw_response : [];
+                                $raw['refund'] = $refund;
+                                $captured->update([
+                                    'status' => 'refunded',
+                                    'raw_response' => $raw,
+                                ]);
+                            }
+
+                            OrderStatusHistory::query()->create([
+                                'order_id' => $locked->id,
+                                'status' => 'refunded',
+                                'note' => $note !== '' ? $note : ('Refunded from admin'.($amountInr ? ' (₹'.number_format($amountInr, 2).')' : '')),
+                                'created_by' => auth()->id(),
+                            ]);
+                        });
+
+                        Notification::make()->title('Order refunded')->success()->send();
+                        $this->record = $this->record->fresh();
 
                         return;
                     }
 
-                    DB::transaction(function () use ($order, $refund, $note, $amountInr): void {
-                        $locked = Order::query()->whereKey($order->id)->lockForUpdate()->first();
-                        if (! $locked) {
+                    if ($gateway === 'stripe') {
+                        if (! $stripe->isConfigured()) {
+                            Notification::make()->title('Stripe is not configured')->danger()->send();
+
                             return;
                         }
 
-                        $locked->update(['status' => 'refunded']);
+                        $paymentIntentId = $stripe->resolvePaymentIntentId($order);
+                        if (! is_string($paymentIntentId) || $paymentIntentId === '') {
+                            Notification::make()->title('Missing Stripe payment intent')->danger()->send();
 
-                        $captured = Payment::query()
-                            ->where('order_id', $locked->id)
-                            ->where('gateway', 'razorpay')
-                            ->where('status', 'captured')
-                            ->latest()
-                            ->first();
-
-                        if ($captured) {
-                            $raw = is_array($captured->raw_response) ? $captured->raw_response : [];
-                            $raw['refund'] = $refund;
-                            $captured->update([
-                                'status' => 'refunded',
-                                'raw_response' => $raw,
-                            ]);
+                            return;
                         }
 
-                        OrderStatusHistory::query()->create([
-                            'order_id' => $locked->id,
-                            'status' => 'refunded',
-                            'note' => $note !== '' ? $note : ('Refunded from admin'.($amountInr ? ' (₹'.number_format($amountInr, 2).')' : '')),
-                            'created_by' => auth()->id(),
-                        ]);
-                    });
+                        $meta = [
+                            'order_id' => (string) $order->id,
+                            'order_number' => (string) $order->order_number,
+                            'reason' => $note !== '' ? $note : 'Admin refund',
+                        ];
 
-                    Notification::make()->title('Order refunded')->success()->send();
-                    $this->record = $this->record->fresh();
+                        try {
+                            $refund = $stripe->refundPaymentIntent($paymentIntentId, $amountPaise, $meta);
+                        } catch (\Throwable $e) {
+                            Notification::make()
+                                ->title('Refund failed')
+                                ->body($e->getMessage())
+                                ->danger()
+                                ->send();
+
+                            return;
+                        }
+
+                        DB::transaction(function () use ($order, $refund, $note, $amountInr): void {
+                            $locked = Order::query()->whereKey($order->id)->lockForUpdate()->first();
+                            if (! $locked) {
+                                return;
+                            }
+
+                            $locked->update(['status' => 'refunded']);
+
+                            $captured = Payment::query()
+                                ->where('order_id', $locked->id)
+                                ->where('gateway', 'stripe')
+                                ->where('status', 'captured')
+                                ->latest()
+                                ->first();
+
+                            if ($captured) {
+                                $raw = is_array($captured->raw_response) ? $captured->raw_response : [];
+                                $raw['refund'] = $refund;
+                                $captured->update([
+                                    'status' => 'refunded',
+                                    'raw_response' => $raw,
+                                ]);
+                            }
+
+                            OrderStatusHistory::query()->create([
+                                'order_id' => $locked->id,
+                                'status' => 'refunded',
+                                'note' => $note !== '' ? $note : ('Refunded from admin (Stripe)'.($amountInr ? ' (₹'.number_format($amountInr, 2).')' : '')),
+                                'created_by' => auth()->id(),
+                            ]);
+                        });
+
+                        Notification::make()->title('Order refunded')->success()->send();
+                        $this->record = $this->record->fresh();
+
+                        return;
+                    }
+
+                    Notification::make()->title('Automated refunds are only available for Razorpay or Stripe')->danger()->send();
                 }),
             Action::make('downloadPickList')
                 ->label('Print pick list')
@@ -178,7 +253,7 @@ class EditOrder extends EditRecord
 
                     return $s !== null && $s->shiprocket_shipment_id !== null && $s->shiprocket_shipment_id !== '';
                 })
-                ->action(function (ShiprocketService $shiprocket): ?\Illuminate\Http\RedirectResponse {
+                ->action(function (ShiprocketService $shiprocket): ?RedirectResponse {
                     $shipment = $this->record->shipments()->first();
                     if ($shipment === null || $shipment->shiprocket_shipment_id === null || $shipment->shiprocket_shipment_id === '') {
                         Notification::make()->title('No Shiprocket shipment')->danger()->send();

@@ -3,7 +3,9 @@
 namespace App\Filament\Resources\Products\Schemas;
 
 use App\Models\Component;
+use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\MarkdownEditor;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
@@ -75,9 +77,35 @@ class ProductForm
                                 Textarea::make('short_description')
                                     ->rows(3)
                                     ->columnSpanFull(),
-                                Textarea::make('story_md')
+                                MarkdownEditor::make('story_md')
                                     ->label('Story (Markdown)')
-                                    ->rows(12)
+                                    ->toolbarButtons([
+                                        'bold',
+                                        'bulletList',
+                                        'heading',
+                                        'italic',
+                                        'link',
+                                        'orderedList',
+                                        'redo',
+                                        'undo',
+                                    ])
+                                    ->columnSpanFull(),
+                            ]),
+                        Tab::make('Related')
+                            ->schema([
+                                CheckboxList::make('artisans')
+                                    ->relationship('artisans', 'name')
+                                    ->searchable()
+                                    ->bulkToggleable()
+                                    ->columns(2)
+                                    ->gridDirection('row')
+                                    ->columnSpanFull(),
+                                CheckboxList::make('occasions')
+                                    ->relationship('occasions', 'name')
+                                    ->searchable()
+                                    ->bulkToggleable()
+                                    ->columns(2)
+                                    ->gridDirection('row')
                                     ->columnSpanFull(),
                             ]),
                         Tab::make('Images')
@@ -198,8 +226,6 @@ class ProductForm
     }
 
     /**
-     * @param  mixed  $rows
-     * @param  mixed  $price
      * @return array{cost: float, price: float, margin_pct: float, suggested_price: float}
      */
     private static function bomMetrics(mixed $rows, mixed $price): array
