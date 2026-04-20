@@ -2,10 +2,12 @@
 
 namespace App\Filament\Resources\Products\Tables;
 
+use App\Models\Product;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\IconColumn;
+use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 
@@ -15,6 +17,11 @@ class ProductsTable
     {
         return $table
             ->columns([
+                ImageColumn::make('cover_image')
+                    ->label('')
+                    ->state(fn (Product $record): ?string => $record->getFirstMediaUrl('images') ?: null)
+                    ->circular()
+                    ->size(40),
                 TextColumn::make('category.name')
                     ->searchable(),
                 TextColumn::make('region.name')

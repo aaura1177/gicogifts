@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Products\Schemas;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -74,6 +75,18 @@ class ProductForm
                                 Textarea::make('story_md')
                                     ->label('Story (Markdown)')
                                     ->rows(12)
+                                    ->columnSpanFull(),
+                            ]),
+                        Tab::make('Images')
+                            ->schema([
+                                SpatieMediaLibraryFileUpload::make('images')
+                                    ->collection('images')
+                                    ->multiple()
+                                    ->image()
+                                    ->imageEditor()
+                                    ->reorderable()
+                                    ->maxFiles(12)
+                                    ->helperText('Drag to reorder. First image appears as the product cover.')
                                     ->columnSpanFull(),
                             ]),
                         Tab::make('BOM')
