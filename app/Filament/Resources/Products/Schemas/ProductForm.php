@@ -2,7 +2,9 @@
 
 namespace App\Filament\Resources\Products\Schemas;
 
+use App\Models\Component;
 use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\SpatieMediaLibraryFileUpload;
@@ -52,6 +54,7 @@ class ProductForm
                                 TextInput::make('price_inr')
                                     ->required()
                                     ->numeric()
+                                    ->live(onBlur: true)
                                     ->prefix('₹'),
                                 TextInput::make('compare_at_price_inr')
                                     ->numeric()
@@ -99,11 +102,13 @@ class ProductForm
                                             ->relationship('component', 'name', fn ($query) => $query->orderBy('name'))
                                             ->searchable()
                                             ->preload()
+                                            ->live()
                                             ->required(),
                                         TextInput::make('quantity')
                                             ->numeric()
                                             ->required()
                                             ->default(1)
+                                            ->live(onBlur: true)
                                             ->minValue(0.01),
                                         TextInput::make('notes')
                                             ->maxLength(255)
@@ -114,6 +119,35 @@ class ProductForm
                                     ->addActionLabel('Add component')
                                     ->reorderable(false)
                                     ->collapsible(),
+                                Placeholder::make('bom_cost_preview')
+                                    ->label('Estimated BOM cost')
+                                    ->content(function (Get $get): string {
+                                        $metrics = self::bomMetrics($get('productComponents'), $get('price_inr'));
+
+                                        return '₹'.number_format($metrics['cost'], 2);
+                                    }),
+                                Placeholder::make('bom_margin_preview')
+                                    ->label('Current gross margin')
+                                    ->content(function (Get $get): string {
+                                        $metrics = self::bomMetrics($get('productComponents'), $get('price_inr'));
+
+                                        if ($metrics['cost'] <= 0 || $metrics['price'] <= 0) {
+                                            return 'Add components + price to view margin';
+                                        }
+
+                                        return number_format($metrics['margin_pct'], 1).'%';
+                                    }),
+                                Placeholder::make('bom_suggested_price')
+                                    ->label('Suggested retail price')
+                                    ->content(function (Get $get): string {
+                                        $metrics = self::bomMetrics($get('productComponents'), $get('price_inr'));
+
+                                        if ($metrics['cost'] <= 0) {
+                                            return 'Add component costs to estimate';
+                                        }
+
+                                        return '₹'.number_format($metrics['suggested_price'], 2).' (at ~55% margin)';
+                                    }),
                             ]),
                         Tab::make('Shipping & tax')
                             ->schema([
@@ -161,5 +195,53 @@ class ProductForm
                     ])
                     ->columnSpanFull(),
             ]);
+    }
+
+    /**
+     * @param  mixed  $rows
+     * @param  mixed  $price
+     * @return array{cost: float, price: float, margin_pct: float, suggested_price: float}
+     */
+    private static function bomMetrics(mixed $rows, mixed $price): array
+    {
+        $items = is_array($rows) ? $rows : [];
+        $componentIds = collect($items)
+            ->pluck('component_id')
+            ->filter(fn ($id) => is_numeric($id))
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        $costMap = $componentIds->isEmpty()
+            ? collect()
+            : Component::query()
+                ->whereIn('id', $componentIds)
+                ->pluck('unit_cost_inr', 'id')
+                ->map(fn ($value) => (float) $value);
+
+        $bomCost = 0.0;
+        foreach ($items as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+            $cid = isset($item['component_id']) && is_numeric($item['component_id']) ? (int) $item['component_id'] : null;
+            $qty = isset($item['quantity']) && is_numeric($item['quantity']) ? (float) $item['quantity'] : 0.0;
+            if (! $cid || $qty <= 0) {
+                continue;
+            }
+            $unitCost = (float) ($costMap[$cid] ?? 0.0);
+            $bomCost += $unitCost * $qty;
+        }
+
+        $priceValue = is_numeric($price) ? (float) $price : 0.0;
+        $marginPct = $priceValue > 0 ? (($priceValue - $bomCost) / $priceValue) * 100 : 0.0;
+        $suggestedAt55 = $bomCost > 0 ? $bomCost / 0.45 : 0.0;
+
+        return [
+            'cost' => round($bomCost, 2),
+            'price' => round($priceValue, 2),
+            'margin_pct' => round($marginPct, 2),
+            'suggested_price' => round($suggestedAt55, 2),
+        ];
     }
 }
