@@ -3,12 +3,9 @@
 #
 # Preferred: in hPanel set Document Root to `public_html/public` — then you only need `public/.htaccess`
 # and can delete this file.
-
-<IfModule mod_alias.c>
-    # Anyone using https://gicogifts.com/public/... gets a clean URL
-    RedirectMatch 301 ^/public/?$ /
-    RedirectMatch 301 ^/public/(.+)$ /$1
-</IfModule>
+#
+# Optional RedirectMatch `/public/...` → `/...` removed for troubleshooting. Re-add if old `/public/` URLs
+# must 301 to clean paths; normal requests use the RewriteRule below only.
 
 <IfModule mod_rewrite.c>
     Options +FollowSymLinks
