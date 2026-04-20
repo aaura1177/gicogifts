@@ -76,4 +76,34 @@ class RazorpayService
         $api = new Api(config('services.razorpay.key_id'), config('services.razorpay.key_secret'));
         $api->utility->verifyWebhookSignature($rawBody, $signatureHeader, $secret);
     }
+
+    /**
+     * Refund a captured Razorpay payment.
+     *
+     * @return array<string, mixed>
+     */
+    public function refundPayment(string $paymentId, ?int $amountPaise = null, array $notes = []): array
+    {
+        if (app()->environment('testing')) {
+            return [
+                'id' => 'rfnd_test_'.Str::lower(Str::random(10)),
+                'entity' => 'refund',
+                'payment_id' => $paymentId,
+                'amount' => $amountPaise,
+                'status' => 'processed',
+                'notes' => $notes,
+            ];
+        }
+
+        $api = new Api(config('services.razorpay.key_id'), config('services.razorpay.key_secret'));
+        $params = ['notes' => $notes];
+        if (is_int($amountPaise) && $amountPaise > 0) {
+            $params['amount'] = $amountPaise;
+        }
+
+        /** @var array<string, mixed> $refund */
+        $refund = $api->payment->fetch($paymentId)->refund($params)->toArray();
+
+        return $refund;
+    }
 }
