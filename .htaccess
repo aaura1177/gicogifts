@@ -1,0 +1,20 @@
+# Hostinger / Apache: document root points at this folder (Laravel project root), not `public/`.
+# This forwards requests into `public/` so the site works at https://gicogifts.com/ without /public/ in URLs.
+#
+# Preferred: in hPanel set Document Root to `public_html/public` — then you only need `public/.htaccess`
+# and can delete this file.
+
+<IfModule mod_alias.c>
+    # Anyone using https://gicogifts.com/public/... gets a clean URL
+    RedirectMatch 301 ^/public/?$ /
+    RedirectMatch 301 ^/public/(.+)$ /$1
+</IfModule>
+
+<IfModule mod_rewrite.c>
+    Options +FollowSymLinks
+    RewriteEngine On
+    RewriteBase /
+
+    # Laravel: route everything into public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
