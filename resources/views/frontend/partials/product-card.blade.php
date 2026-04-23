@@ -3,34 +3,43 @@
     $narrow = $narrow ?? false;
     $img = $product->getFirstMediaUrl('images');
     if (! $img) {
-        $img = 'https://placehold.co/640x480/F7EEE3/6D3620?text=' . rawurlencode($product->name);
+        $img = 'https://placehold.co/800x800/F7EEE3/6D3620?text=' . rawurlencode($product->name);
     }
-    $articleClass = 'group rounded-2xl border border-ivory-200 bg-white overflow-hidden shadow-sm transition hover:shadow-warm ' . ($narrow ? 'w-full max-w-sm' : '');
+    $region = $product->region?->name;
 @endphp
-<article class="{{ trim($articleClass) }}">
-    <div class="relative aspect-[4/3] w-full overflow-hidden bg-ivory-100">
-        <a href="{{ route('product.show', $product->slug) }}" class="block h-full">
-            <img src="{{ $img }}" alt="{{ $product->name }}" class="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]" width="640" height="480" loading="lazy">
-        </a>
+
+<article class="group {{ $narrow ? 'w-full max-w-sm' : '' }}">
+    {{-- Image is the frame. No border, no bg-white wrapper. --}}
+    <a href="{{ route('product.show', $product->slug) }}" class="block relative aspect-square rounded-2xl overflow-hidden bg-ivory-100">
+        <img src="{{ $img }}" alt="{{ $product->name }}"
+             class="w-full h-full object-cover transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.04]"
+             width="800" height="800" loading="lazy">
+
         @if($quickAdd)
-            <div class="pointer-events-none absolute inset-0 flex items-end justify-center bg-gradient-to-t from-chocolate-900/50 to-transparent opacity-0 transition group-hover:opacity-100">
-                <div class="pointer-events-auto m-4 w-full max-w-[12rem]" x-data="addToCartBtn({{ $product->id }})">
-                    <button type="button" @click="add" x-bind:disabled="loading" class="w-full min-h-[44px] rounded-lg bg-sienna-500 px-4 py-2.5 text-sm font-medium text-white shadow-warm hover:bg-sienna-600 disabled:opacity-50">
-                        <span x-show="!loading">Add to cart</span>
-                        <span x-show="loading" x-cloak>Adding…</span>
-                    </button>
-                    <p x-show="message" x-text="message" class="mt-2 text-center text-xs text-white drop-shadow" x-cloak></p>
-                </div>
-            </div>
+          {{-- Subtle hover-only quick-add, no gradient shout --}}
+          <div class="pointer-events-none absolute inset-x-0 bottom-0 p-4 opacity-0 translate-y-2 transition duration-300 group-hover:opacity-100 group-hover:translate-y-0"
+               x-data="addToCartBtn({{ $product->id }})">
+            <button type="button" @click.prevent="add" x-bind:disabled="loading"
+                    class="pointer-events-auto w-full min-h-[44px] rounded-lg bg-chocolate-900/95 text-ivory-50 text-sm font-medium backdrop-blur hover:bg-chocolate-900 disabled:opacity-50 transition">
+              <span x-show="!loading">Add to cart — ₹{{ number_format($product->price_inr, 0) }}</span>
+              <span x-show="loading" x-cloak>Adding…</span>
+            </button>
+          </div>
         @endif
-    </div>
-    <div class="p-4">
+    </a>
+
+    <div class="pt-5">
+        @if($region)
+          <p class="gico-overline text-chocolate-800/60">{{ $region }}</p>
+        @endif
         <a href="{{ route('product.show', $product->slug) }}" class="block">
-            <h3 class="font-medium text-chocolate-900 group-hover:text-sienna-600">{{ $product->name }}</h3>
-            @if($product->subtitle)
-                <p class="mt-1 text-sm text-chocolate-800/75 line-clamp-2">{{ $product->subtitle }}</p>
-            @endif
-            <p class="mt-2 text-sm font-semibold text-chocolate-900">₹{{ number_format($product->price_inr, 0) }}</p>
+            <h3 class="font-display text-xl font-medium text-chocolate-900 group-hover:text-sienna-600 transition">{{ $product->name }}</h3>
         </a>
+        <div class="mt-3 flex items-baseline justify-between">
+            <p class="text-lg font-medium text-chocolate-900">₹{{ number_format($product->price_inr, 0) }}</p>
+            @if($product->compare_at_price_inr && $product->compare_at_price_inr > $product->price_inr)
+                <p class="text-sm text-chocolate-700/50 line-through">₹{{ number_format($product->compare_at_price_inr, 0) }}</p>
+            @endif
+        </div>
     </div>
 </article>
