@@ -13,3 +13,86 @@
         scroll-behavior: smooth;
     }
 }
+
+/* ============================================ */
+/*  GicoGifts - Design polish utilities         */
+/* ============================================ */
+
+/* Overline eyebrow (use above every section headline) */
+.gico-overline {
+    font-size: 11px;
+    line-height: 1.4;
+    letter-spacing: 0.14em;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* Ornamental gold divider - centered diamond between two thin lines */
+.gico-ornamental {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+}
+.gico-ornamental::before,
+.gico-ornamental::after {
+    content: '';
+    height: 1px;
+    width: 48px;
+    background: #C9A96E;
+}
+.gico-ornamental .dot {
+    width: 6px;
+    height: 6px;
+    background: #C9A96E;
+    transform: rotate(45deg);
+}
+
+/* Fraunces italic in display - enables optical size variant */
+.font-display em {
+    font-style: italic;
+    font-variation-settings: "opsz" 144;
+    font-weight: inherit;
+}
+
+/* Page-load stagger - for hero fade-up sequence */
+.stagger-1 { animation-delay: 80ms; }
+.stagger-2 { animation-delay: 160ms; }
+.stagger-3 { animation-delay: 240ms; }
+.stagger-4 { animation-delay: 320ms; }
+
+/* Editorial warm paper grain (very subtle) */
+.gico-grain::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0.025;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Scroll rail for horizontal artisan/story carousels */
+.scroll-rail {
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+.scroll-rail::-webkit-scrollbar { display: none; }
+.scroll-rail > * { scroll-snap-align: start; }
+
+/* Respect reduced-motion preference */
+@media (prefers-reduced-motion: reduce) {
+    .animate-fade-up,
+    .animate-fade-up-fast {
+        animation: none !important;
+    }
+}
+
+/* Focus style across the site - brand-colored ring */
+*:focus-visible {
+    outline: 2px solid #A0522D;
+    outline-offset: 2px;
+    border-radius: 2px;
+}
